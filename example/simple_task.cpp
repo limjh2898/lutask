@@ -7,6 +7,13 @@
 #include <lutask/context/windows/FixedSizeStack.h>
 #include <lutask/context/TaskFContext.h>
 
+enum class ETaskState {
+	Ready = 1,
+	Timeout,
+	Deferred
+};
+
+
 class SharedStateBase
 {
 private:
@@ -19,10 +26,123 @@ protected:
 	std::exception_ptr  except_{};
 
 
-	void MarkReadyAndNotify(std::unique_lock<std::mutex>& lk) noexcept
+	void _MarkReadyAndNotify(std::unique_lock<std::mutex>& lk) noexcept
 	{
 		assert(lk.owns_lock());
+		ready_ = true;
+		lk.unlock();
+		waiters_.notify_all();
 	}
+
+	void _OwnerDestroyed(std::unique_lock<std::mutex>& lk)
+	{
+		assert(lk.owns_lock());
+		if (!ready_)
+		{
+			//SetException(std::make_exception_ptr())
+		}
+	}
+
+	void _SetException(std::exception_ptr except, std::unique_lock<std::mutex>& lk)
+	{
+		assert(lk.owns_lock());
+		if (ready_ == false)
+		{
+			// throw promise_already_satisfied();
+		}
+		except_ = except;
+		_MarkReadyAndNotify(lk);
+	}
+
+	std::exception_ptr _GetExceptionPtr(std::unique_lock<std::mutex>& lk)
+	{
+		assert(lk.owns_lock());
+		_Wait(lk);
+		return except_;
+	}
+
+	void _Wait(std::unique_lock<std::mutex>& lk) const
+	{
+		assert(lk.owns_lock());
+		waiters_.wait(lk, [this]() { return ready_; });
+	}
+
+	template< typename Rep, typename Period >
+	ETaskState _WaitFor(std::unique_lock<std::mutex>& lk, std::chrono::duration<Rep, Period> const& timeoutDuration) const
+	{
+		assert(lk.owns_lock());
+		return waiters_.wait_for(lk, timeoutDuration, [this]() { return ready_; }) 
+			? ETaskState::Ready : ETaskState::Timeout;
+	}
+
+	template< typename Clock, typename Period >
+	ETaskState _WaitUntil(std::unique_lock<std::mutex>& lk, std::chrono::time_point<Clock, Period> const& timeoutTime) const
+	{
+		assert(lk.owns_lock());
+		return waiters_.wait_until(lk, timeoutTime, [this]() { return ready_; })
+			? ETaskState::Ready : ETaskState::Timeout;
+	}
+
+	virtual void DeallocateFuture() noexcept = 0;
+
+public:
+	SharedStateBase() = default;
+	virtual ~SharedStateBase() = default;
+
+	SharedStateBase(SharedStateBase const&) = delete;
+	SharedStateBase& operator=(SharedStateBase const&) = delete;
+
+	void OwnerDestroyed()
+	{
+		std::unique_lock<std::mutex> lk{ mtx_ };
+		_OwnerDestroyed(lk);
+	}
+
+	void SetException(std::exception_ptr except)
+	{
+		std::unique_lock<std::mutex> lk{ mtx_ };
+		_SetException(except, lk);
+	}
+
+	std::exception_ptr GetExceptionPtr()
+	{
+		std::unique_lock<std::mutex> lk{ mtx_ };
+		return _GetExceptionPtr(lk);
+	}
+
+	void Wait() const
+	{
+		std::unique_lock<std::mutex> lk{ mtx_ };
+		_Wait(lk);
+	}
+
+	template< typename Rep, typename Period >
+	ETaskState WaitFor(std::chrono::duration<Rep, Period> const& timeoutDuration) const
+	{
+		std::unique_lock<std::mutex> lk{ mtx_ };
+		return _WaitFor(lk, timeoutDuration);
+	}
+
+	template< typename Clock, typename Period >
+	ETaskState WaitUntil(std::unique_lock<std::mutex>& lk, std::chrono::time_point<Clock, Period> const& timeoutTime) const
+	{
+		std::unique_lock<std::mutex> lk{ mtx_ };
+		return _WaitUntil(lk, timeoutTime);
+	}
+
+	friend inline
+		void intrusive_ptr_add_ref(shared_state_base* p) noexcept {
+		p->use_count_.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	friend inline
+		void intrusive_ptr_release(shared_state_base* p) noexcept {
+		if (1 == p->use_count_.fetch_sub(1, std::memory_order_release)) {
+			std::atomic_thread_fence(std::memory_order_acquire);
+			p->deallocate_future();
+		}
+	}
+
 };
 
 template<typename Ret, typename ...Args>
