@@ -58,7 +58,7 @@ public:
 	void AttachMainContext(Context* ctx) noexcept;
 	void AttachDispatcherContext(Context* ctx) noexcept;
 	void AttachWorkerContext(Context* ctx) noexcept;
-	void DetachWorkerContext(Context* xtx) noexcept;
+	void DetachWorkerContext(Context* ctx) noexcept;
 };
 
 }

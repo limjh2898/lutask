@@ -119,7 +119,7 @@ public:
     Context& operator=(Context&&) = delete;
 
     void Resume() noexcept;
-    void Resume(Context*) noexcept;
+    void Resume(Context* ctx) noexcept;
 
     void Suspend() noexcept;
     lutask::context::FiberContext SuspendWithCC() noexcept;

@@ -9,10 +9,10 @@ void Fiber::_Start() noexcept {
     ctx->Attach(impl_.get());
     switch (impl_->GetType())
     {
-    case launch::post:
+    case ELaunch::Post:
         ctx->GetScheduler()->Schedule(impl_);
         break;
-    case launch::dispatch:
+    case ELaunch::Dispatch:
         impl_->Resume(ctx);
         break;
     default:

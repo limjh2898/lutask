@@ -114,16 +114,35 @@ lutask::context::FiberContext Scheduler::Terminate(Context* ctx) noexcept
     return policy_->PickNext()->SuspendWithCC();
 }
 
+
 void Scheduler::AttachMainContext(Context* ctx) noexcept
 {
-	mainContext_ = ctx;
-	ctx->scheduler_ = this;
+    mainContext_ = ctx;
+    ctx->scheduler_ = this;
 }
 
-void lutask::Scheduler::AttachDispatcherContext(Context* ctx) noexcept
+void Scheduler::AttachDispatcherContext(Context* ctx) noexcept
 {
     dispatcherContext_ = ctx;
     ctx->dispatcherContext_ = this;
+}
+
+
+void Scheduler::AttachWorkerContext(Context* ctx) noexcept 
+{
+    assert(nullptr != ctx);
+    assert(nullptr == ctx->GetScheduler());
+    workerQueue_.push(ctx);
+    ctx->scheduler_ = this;
+    // an attached context must belong at least to worker-queue
+}
+
+viud Scheduler::DetachWorkerContext(Context* ctx) noexcept
+{
+    assert(nullptr != ctx);
+    assert(nullptr == ctx->GetScheduler());
+    // unlink
+    ctx->scheduler_ = nullptr;
 }
 
 }
