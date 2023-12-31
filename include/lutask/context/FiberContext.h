@@ -24,14 +24,13 @@ struct forced_unwind {
 	}
 };
 
-inline
-transfer_t TaskUnwind(transfer_t t) {
+inline transfer_t FiberUnwind(transfer_t t) {
 	throw forced_unwind(t.fctx);
 	return { nullptr, nullptr };
 }
 
 template<typename _RecordTy>
-transfer_t TaskExit(transfer_t t) noexcept 
+transfer_t FiberExit(transfer_t t) noexcept 
 {
 	_RecordTy* rec = static_cast<_RecordTy*>(t.data);
 #if USE_CONTEXT_SHADOW_STACK
@@ -46,7 +45,7 @@ transfer_t TaskExit(transfer_t t) noexcept
 }
 
 template<typename _RecordTy>
-void TaskEntry(transfer_t t) noexcept
+void FiberEntry(transfer_t t) noexcept
 {
 	_RecordTy* rec = static_cast<_RecordTy*>(t.data);
 	assert(nullptr != t.fctx);
@@ -62,12 +61,12 @@ void TaskEntry(transfer_t t) noexcept
 	}
 
 	assert(t.fctx != nullptr);
-	ontop_fcontext(t.fctx, rec, TaskExit<_RecordTy>);
+	ontop_fcontext(t.fctx, rec, FiberExit<_RecordTy>);
 	assert(false && "context already terminated");
 }
 
 template<typename _CtxTy, typename Func>
-transfer_t TaskOntop(transfer_t t) 
+transfer_t FiberOntop(transfer_t t) 
 {
 	assert(t.data != nullptr);
 	auto p = *static_cast<Func*>(t.data);
@@ -77,7 +76,7 @@ transfer_t TaskOntop(transfer_t t)
 }
 
 template<typename _CtxTy, typename _StackAllocTy, typename Func>
-class TaskRecord
+class FiberRecord
 {
 	using SAllocDecayType = typename std::decay<_StackAllocTy>::type;
 	using TargetFunc = typename std::decay<Func>::type;
@@ -86,7 +85,7 @@ private:
 	SAllocDecayType		salloc_;
 	TargetFunc			fn_;
 
-	static void Destroy(TaskRecord* p) noexcept {
+	static void Destroy(FiberRecord* p) noexcept {
 		SAllocDecayType salloc = std::move(p->salloc_);
 		StackContext sctx = p->sctx_;
 		p->~TaskRecord();
@@ -94,13 +93,13 @@ private:
 	}
 
 public:
-	TaskRecord(StackContext sctx, _StackAllocTy&& salloc, Func&& fn) noexcept 
+	FiberRecord(StackContext sctx, _StackAllocTy&& salloc, Func&& fn) noexcept 
 		: sctx_(sctx),
 		salloc_(std::forward<_StackAllocTy>(salloc)),
 		fn_(std::forward<Func>(fn)) {}
 
-	TaskRecord(TaskRecord const&) = delete;
-	TaskRecord& operator=(TaskRecord const&) = delete;
+	FiberRecord(FiberRecord const&) = delete;
+	FiberRecord& operator=(FiberRecord const&) = delete;
 
 	void Deallocate() noexcept 
 	{
@@ -115,7 +114,7 @@ public:
 };
 
 template<typename Record, typename _StackAllocTy, typename Func>
-fcontext_t CreateTask(_StackAllocTy&& salloc, Func&& fn)
+fcontext_t CreateFiber(_StackAllocTy&& salloc, Func&& fn)
 {
 	auto sctx = salloc.Allocate();
 
@@ -154,7 +153,7 @@ fcontext_t CreateTask(_StackAllocTy&& salloc, Func&& fn)
 	*((unsigned long*)(reinterpret_cast<uintptr_t>(storage) - 8)) = (unsigned long)ss_base;
 	*((unsigned long*)(reinterpret_cast<uintptr_t>(storage) - 16)) = ss_size;
 #endif
-	const fcontext_t fctx = make_fcontext(stackTop, size, &TaskEntry< Record >);
+	const fcontext_t fctx = make_fcontext(stackTop, size, &FiberEntry< Record >);
 	assert(nullptr != fctx);
 	// transfer control structure to context-stack
 	return jump_fcontext(fctx, record).fctx;
@@ -164,56 +163,56 @@ template< typename X, typename Y >
 using disable_overload =
 typename std::enable_if<!std::is_base_of<X, typename std::decay< Y >::type>::value>::type;
 
-class TaskContext
+class FiberContext
 {
 private:
 	template<typename _CtxTy, typename _StackAllocTy, typename Func>
-	friend class TaskRecord;
+	friend class FiberRecord;
 
 	template<typename _CtxTy, typename Func>
-	friend transfer_t TaskOntop(transfer_t);
+	friend transfer_t FiberOntop(transfer_t);
 
 	fcontext_t fctx_ = nullptr;
 
-	TaskContext(fcontext_t fctx) noexcept : fctx_{ fctx } {}
+	FiberContext(fcontext_t fctx) noexcept : fctx_{ fctx } {}
 
 public:
-	TaskContext() noexcept = default;
+	FiberContext() noexcept = default;
 
-	template<typename Func, typename = disable_overload<TaskContext, Func>>
-	TaskContext(Func&& func) 
-		: TaskContext{std::allocator_arg, FixedSizeStack(), std::forward<Func>(func)}
+	template<typename Func, typename = disable_overload<FiberContext, Func>>
+	FiberContext(Func&& func) 
+		: FiberContext{std::allocator_arg, FixedSizeStack(), std::forward<Func>(func)}
 	{}
 
 	template<typename _StackAllocTy, typename Func>
-	TaskContext(std::allocator_arg_t, _StackAllocTy&& salloc, Func&& func)
-		: fctx_{ CreateTask<TaskRecord<TaskContext, _StackAllocTy, Func>>(std::forward<_StackAllocTy>(salloc), std::forward<Func>(func)) }
+	FiberContext(std::allocator_arg_t, _StackAllocTy&& salloc, Func&& func)
+		: fctx_{ CreateFiber<FiberRecord<FiberContext, _StackAllocTy, Func>>(std::forward<_StackAllocTy>(salloc), std::forward<Func>(func)) }
 	{}
 
-	TaskContext(TaskContext&& other) noexcept { swap(other); }
+	FiberContext(FiberContext&& other) noexcept { swap(other); }
 
-	~TaskContext() 
+	~FiberContext() 
 	{
 		if (fctx_ != nullptr)
 		{
-			ontop_fcontext(std::exchange(fctx_, nullptr), nullptr, TaskUnwind);
+			ontop_fcontext(std::exchange(fctx_, nullptr), nullptr, FiberUnwind);
 		}
 	}
 
-	TaskContext& operator=(TaskContext&& other) noexcept 
+	FiberContext& operator=(FiberContext&& other) noexcept
 	{
 		if (this != &other) 
 		{
-			TaskContext tmp = std::move(other);
+			FiberContext tmp = std::move(other);
 			swap(tmp);
 		}
 		return *this;
 	}
 
-	TaskContext(TaskContext const& other) noexcept = delete;
-	TaskContext& operator=(TaskContext const& other) noexcept = delete;
+	FiberContext(FiberContext const& other) noexcept = delete;
+	FiberContext& operator=(FiberContext const& other) noexcept = delete;
 
-	TaskContext Resume()&& 
+	FiberContext Resume()&& 
 	{
 		assert(fctx_ != nullptr);
 		return { jump_fcontext(std::exchange(fctx_, nullptr), nullptr).fctx };
@@ -221,10 +220,10 @@ public:
 
 	explicit operator bool() const noexcept { return fctx_ != nullptr; }
 	bool operator!() const noexcept { return fctx_ == nullptr; }
-	bool operator<(TaskContext const& other) const noexcept { return fctx_ < other.fctx_; }
+	bool operator<(FiberContext const& other) const noexcept { return fctx_ < other.fctx_; }
 
 	template< typename charT, class traitsT >
-	friend std::basic_ostream< charT, traitsT >& operator<<(std::basic_ostream< charT, traitsT >& os, TaskContext const& other) 
+	friend std::basic_ostream< charT, traitsT >& operator<<(std::basic_ostream< charT, traitsT >& os, FiberContext const& other)
 	{
 		if (nullptr != other.fctx_) {
 			return os << other.fctx_;
@@ -234,7 +233,7 @@ public:
 		}
 	}
 
-	void swap(TaskContext& other) noexcept {
+	void swap(FiberContext& other) noexcept {
 		std::swap(fctx_, other.fctx_);
 	}
 };

@@ -18,7 +18,8 @@ public:
     BasicFixedSizeStack( std::size_t size = _StackTraitsTy::DefaultSize() ) noexcept
         : size_( size) { }
 
-    StackContext Allocate() {
+    StackContext Allocate() 
+    {
         void * vp = std::malloc( size_);
         if ( ! vp) {
             throw std::bad_alloc();
@@ -29,7 +30,8 @@ public:
         return sctx;
     }
 
-    void Deallocate(StackContext& sctx) noexcept {
+    void Deallocate(StackContext& sctx) noexcept 
+    {
         assert(sctx.Sp);
 
         void *vp = static_cast<char*>(sctx.Sp) - sctx.Size;
