@@ -42,7 +42,7 @@ std::size_t lutask::StackTraits::PageSize()
 
 std::size_t lutask::StackTraits::DefaultSize()
 {
-	return 128 * 1024;
+	return 16 * 1024;
 }
 
 std::size_t lutask::StackTraits::MinimumSize()

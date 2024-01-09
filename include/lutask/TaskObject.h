@@ -1,5 +1,6 @@
 #pragma once
 #include <functional>
+#include <memory>
 
 template<typename Ret, typename ...Args>
 struct TaskBase : public std::enable_shared_from_this<TaskBase<Ret, Args...>>
@@ -31,7 +32,7 @@ public:
 	{
 		try
 		{
-			std::apply(fn_, std::make_tuple(std::forward<Args>(args)...));
+			auto value = std::apply(fn_, std::make_tuple(std::forward<Args>(args)...));
 		}
 		catch (...)
 		{

@@ -5,11 +5,11 @@
 namespace lutask {
 namespace schedule {
 
-void RoundRobinPolicy::Awakened(Context* context) noexcept
+void RoundRobinPolicy::Awakened(Context* ctx) noexcept
 {
 	assert(nullptr != ctx);
 	assert(ctx->IsResumable());
-	readyQueue_.push(context);
+	readyQueue_.push(ctx);
 }
 
 Context* RoundRobinPolicy::PickNext() noexcept
@@ -21,6 +21,8 @@ Context* RoundRobinPolicy::PickNext() noexcept
 		// prefetch?
 		assert(ctx != nullptr);
 		assert(ctx->IsResumable());
+
+		return ctx;
 	}
 	return nullptr;
 }

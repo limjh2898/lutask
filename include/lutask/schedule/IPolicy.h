@@ -6,7 +6,7 @@
 
 namespace lutask{
 
-class Context;
+struct Context;
 
 namespace schedule{
 

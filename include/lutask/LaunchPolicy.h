@@ -4,7 +4,8 @@ namespace lutask
 {
 enum class ELaunch {
 	Dispatch,
-	Post
+	Post,
+	Async
 };
 
 template<typename Fn>

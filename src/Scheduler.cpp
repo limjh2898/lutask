@@ -2,7 +2,7 @@
 
 namespace lutask
 {
-Scheduler::Scheduler(schedule::IPolicy* policy)
+Scheduler::Scheduler(lutask::schedule::IPolicy* policy) noexcept
 	: mainContext_(nullptr)
 	, dispatcherContext_(nullptr)
 	, policy_(policy)
@@ -20,11 +20,11 @@ void Scheduler::ProcTerminated()
     while (!terminatedQueue_.empty())
     {
         Context* ctx = terminatedQueue_.front();
-        terminatedQueue_.pop_front();
+        terminatedQueue_.pop();
         if (ctx == nullptr)
             continue;
 
-        assert(ctx->IsContext());
+        assert(ctx->IsContext(EType::WorkerContext));
         assert(this == ctx->GetScheduler());
         assert(ctx->terminated_);    
     }
@@ -33,8 +33,9 @@ void Scheduler::ProcTerminated()
 void Scheduler::ProcSleepToReady()
 {
     std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-    for (auto iter = sleepQueue_.begin();;)
+    for (auto iter = sleepQueue_.begin(); iter != sleepQueue_.end();)
     {
+        Context* ctx = (*iter);
         assert(!ctx->IsContext(EType::DispatcherContext));
         assert(mainContext_ == ctx);
 
@@ -83,25 +84,21 @@ lutask::context::FiberContext Scheduler::Dispatch() noexcept
         }
         else 
         {
-            // no ready context, wait till signaled
-            // set deadline to highest value
             std::chrono::steady_clock::time_point suspendTime =
                 (std::chrono::steady_clock::time_point::max)();
 
-            // get lowest deadline from sleep-queue
             auto iter = sleepQueue_.begin();
             if (sleepQueue_.end() != iter)
             {
-                suspend_time = (*iter)->tp_;
+                suspendTime = (*iter)->tp_;
             }
-            // no ready context, wait till signaled
             policy_->SuspendUntil(suspendTime);
         }
     }
     ProcTerminated();
 
     // return to main-context
-    return main_ctx_->suspend_with_cc();
+    return mainContext_->SuspendWithCC();
 }
 
 lutask::context::FiberContext Scheduler::Terminate(Context* ctx) noexcept
@@ -114,6 +111,33 @@ lutask::context::FiberContext Scheduler::Terminate(Context* ctx) noexcept
     return policy_->PickNext()->SuspendWithCC();
 }
 
+void Scheduler::Yield(Context* ctx) noexcept
+{
+    assert(nullptr != ctx);
+    assert(Context::Active() == ctx);
+    assert(ctx->IsContext(EType::WorkerContext) || ctx->IsContext(EType::MainContext));
+
+    policy_->PickNext()->Resume(ctx);
+}
+
+bool Scheduler::WaitUntil(Context* ctx, std::chrono::steady_clock::time_point const& tp) noexcept
+{
+    assert(nullptr != ctx);
+    assert(Context::Active() == ctx);
+    assert(ctx->IsContext(EType::WorkerContext) || ctx->IsContext(EType::MainContext));
+
+    ctx->tp_ = tp;
+    sleepQueue_.insert(ctx);
+
+    policy_->PickNext()->Resume(ctx);
+
+    return std::chrono::steady_clock::now() < tp;
+}
+
+void Scheduler::Suspend() noexcept
+{
+    policy_->PickNext()->Resume();
+}
 
 void Scheduler::AttachMainContext(Context* ctx) noexcept
 {
@@ -124,9 +148,9 @@ void Scheduler::AttachMainContext(Context* ctx) noexcept
 void Scheduler::AttachDispatcherContext(Context* ctx) noexcept
 {
     dispatcherContext_ = ctx;
-    ctx->dispatcherContext_ = this;
+    dispatcherContext_->scheduler_ = this;
+    policy_->Awakened(dispatcherContext_);
 }
-
 
 void Scheduler::AttachWorkerContext(Context* ctx) noexcept 
 {
@@ -137,12 +161,11 @@ void Scheduler::AttachWorkerContext(Context* ctx) noexcept
     // an attached context must belong at least to worker-queue
 }
 
-viud Scheduler::DetachWorkerContext(Context* ctx) noexcept
+void Scheduler::DetachWorkerContext(Context* ctx) noexcept
 {
     assert(nullptr != ctx);
-    assert(nullptr == ctx->GetScheduler());
+    assert(ctx->IsContext(EType::PinnedContext) == false);
     // unlink
     ctx->scheduler_ = nullptr;
 }
-
 }

@@ -6,7 +6,7 @@
 #include <lutask/schedule/IPolicy.h>
 
 namespace lutask{
-class Context;
+struct Context;
 namespace schedule{
 
 class RoundRobinPolicy : public IPolicy 
@@ -24,11 +24,11 @@ public:
     RoundRobinPolicy(RoundRobinPolicy const&) = delete;
     RoundRobinPolicy& operator=(RoundRobinPolicy const&) = delete;
 
-    void Awakened(Context* context) noexcept override;
-    Context* PickNext() noexcept override;
-    bool HasReadyFibers() const noexcept override;
-    void SuspendUntil(TimePoint const&) noexcept override;
-    void Notify() noexcept override;
+    virtual void Awakened(Context* context) noexcept override final;
+    virtual Context* PickNext() noexcept override final;
+    virtual bool HasReadyFibers() const noexcept override final;
+    virtual void SuspendUntil(TimePoint const&) noexcept override final;
+    virtual void Notify() noexcept override final;
 };
 
 }}

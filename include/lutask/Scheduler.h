@@ -14,16 +14,16 @@ class Scheduler
 {
 	struct TimepointLess
 	{
-		bool operator()(Context const& l, Context const& r) const noexcept 
+		bool operator()(Context const* l, Context const* r) const noexcept 
 		{
-			return l.tp_ < r.tp_;
+			return l->tp_ < r->tp_;
 		}
 	};
 
 private:
 	Context*			mainContext_;
 	Context*			dispatcherContext_{};
-	schedule::IPolicy*	policy_;
+	lutask::schedule::IPolicy*	policy_;
 	bool				shutdown_{ false };
 
 	std::queue<Context*> workerQueue_;
@@ -35,8 +35,7 @@ private:
 	void ProcSleepToReady();
 
 public:
-	Scheduler(schedule::IPolicy* policy) noexcept;
-
+	Scheduler(lutask::schedule::IPolicy* policy) noexcept;
 	Scheduler(Scheduler const&) = delete;
 	Scheduler& operator=(Scheduler const&) = delete;
 
@@ -45,7 +44,6 @@ public:
 	void Schedule(Context* ctx) noexcept;
 
 	lutask::context::FiberContext Dispatch() noexcept;
-
 	lutask::context::FiberContext Terminate(Context* ctx) noexcept;
 
 	void Yield(Context* ctx) noexcept;

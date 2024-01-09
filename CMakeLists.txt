@@ -15,6 +15,9 @@ unset(_default_binfmt)
 
 set(CMAKE_CXX_STANDARD 17)
 
+#add_compile_options(-fsanitize=address)
+#add_link_options(-fsanitize=address)
+
 ## ABI
 
 set(_all_archs arm arm64 loongarch64 mips32 mips64 ppc32 ppc64 riscv64 s390x i386 x86_64 combined)
@@ -146,11 +149,13 @@ message(STATUS "${ASM_SOURCES}")
 include_directories("include")
 
 file(GLOB TARGET_SOURCE 
-    "src/context/windows/StackTraits.cpp")
+    "src/context/windows/StackTraits.cpp"
+    "src/schedule/*.cpp"
+    "src/*.cpp")
 
-add_library(lutask STATIC ${ASM_SOURCES} ${TARGET_SOURCE})
+add_library(lutask STATIC ${ASM_SOURCES} ${TARGET_SOURCE} "include/lutask/schedule/SharedWorkPolicy.h")
 
-add_executable(simple_task "example/simple_task.cpp")
+add_executable(simple_task "example/simple_task.cpp" "include/lutask/schedule/SharedWorkPolicy.h")
 target_link_libraries(simple_task lutask)
 
 if(BUILD_SHARED_LIBS)

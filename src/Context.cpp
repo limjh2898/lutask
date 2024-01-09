@@ -11,7 +11,7 @@ public:
     MainContext() noexcept : Context(1, EType::MainContext, ELaunch::Post) {}
 };
 
-class DispatcherContext final : public Context 
+struct DispatcherContext final : public Context
 {
 private:
     lutask::context::FiberContext Run_(lutask::context::FiberContext&&) 
@@ -22,14 +22,15 @@ private:
 
 public:
     DispatcherContext(Preallocated const& palloc, context::FixedSizeStack&& salloc) 
-        : Context{ 0, type::dispatcher_context, launch::post } 
+        : Context{ 0, EType::DispatcherContext, ELaunch::Post } 
     {
         c_ = lutask::context::FiberContext{ std::allocator_arg, palloc, std::move(salloc),
                                     std::bind(&DispatcherContext::Run_, this, std::placeholders::_1) };
     }
 };
 
-static Context* MakeDispatcherContext(lutask::context::FixedSizeStack&& salloc) {
+static Context* MakeDispatcherContext(lutask::context::FixedSizeStack&& salloc) 
+{
     auto sctx = salloc.Allocate();
     void* storage = reinterpret_cast<void*>(
         (reinterpret_cast<uintptr_t>(sctx.Sp) - static_cast<uintptr_t>(sizeof(DispatcherContext)))
@@ -38,7 +39,7 @@ static Context* MakeDispatcherContext(lutask::context::FixedSizeStack&& salloc) 
         reinterpret_cast<uintptr_t>(sctx.Sp) - static_cast<uintptr_t>(sctx.Size));
     const std::size_t size = reinterpret_cast<uintptr_t>(storage) - reinterpret_cast<uintptr_t>(stackBottom);
     
-    return new (storage) DispatcherContext{ Preallocated{ storage, size, sctx }, std::move(salloc) } 
+    return new (storage) DispatcherContext{ Preallocated{ storage, size, sctx }, std::move(salloc) };
 };
 
 struct ContextInitializer 
@@ -82,7 +83,7 @@ struct ContextInitializer
     void Deinitialize()
     {
         lutask::Context* mainCtx = active_;
-        assert(mainCtx->is_context(type::main_context));
+        assert(mainCtx->IsContext(EType::MainContext));
         lutask::Scheduler* sched = mainCtx->GetScheduler();
         delete sched;
         delete mainCtx;
@@ -102,6 +103,26 @@ bool Context::InitializeThread(lutask::schedule::IPolicy* policy, lutask::contex
 
         return true;
     }
+
+    return false;
+}
+
+Context::Context(std::size_t initialCount, EType type, ELaunch policy)noexcept
+    : useCount_(initialCount)
+    , scheduler_(nullptr)
+    , tp_(std::chrono::steady_clock::time_point::max())
+    , type_(type)
+    , policy_(policy)
+{ }
+
+Context::~Context()
+{
+    if (IsContext(EType::DispatcherContext)) 
+    {
+        assert(nullptr == Active());
+    }
+
+    assert(waitList_.IsEmpty());
 }
 
 Context* Context::Active() noexcept
@@ -115,6 +136,86 @@ void Context::ResetActive() noexcept
     ContextInitializer::active_ = nullptr;
 }
 
+void Context::Join()
+{
+    Context* activeCtx = Context::Active();
+
+    if (terminated_ == false) 
+    {
+        waitList_.SuspendAndWait(activeCtx);
+
+        assert(Context::Active() == activeCtx);
+    }
+}
+
+void Context::Resume() noexcept
+{
+    Context* prev = this;
+    std::swap(ContextInitializer::active_, prev);
+    std::move(c_).ResumeWith([prev](lutask::context::FiberContext&& c)
+        {
+            prev->c_ = std::move(c);
+            return lutask::context::FiberContext();
+        });
+}
+
+void Context::Resume(Context* readyCtx) noexcept
+{
+    Context* prev = this;
+    std::swap(ContextInitializer::active_, prev);
+    std::move(c_).ResumeWith([prev, readyCtx](lutask::context::FiberContext&& c)
+        {
+            prev->c_ = std::move(c);
+            Context::Active()->GetScheduler()->Schedule(readyCtx);
+            return lutask::context::FiberContext();
+        });
+}
+
+void Context::Suspend() noexcept
+{
+    scheduler_->Suspend();
+}
+
+lutask::context::FiberContext Context::SuspendWithCC() noexcept
+{
+    Context* prev = this;
+    std::swap(ContextInitializer::active_, prev);
+    return std::move(c_).ResumeWith([prev](lutask::context::FiberContext&& c)
+           {
+               prev->c_ = std::move(c);
+               return lutask::context::FiberContext();
+           });
+}
+
+lutask::context::FiberContext Context::Terminate() noexcept
+{
+    terminated_ = true;
+    waitList_.NotifyAll();
+    assert(waitList_.IsEmpty());
+    return scheduler_->Terminate(this);
+}
+
+void Context::Yield() noexcept
+{
+    scheduler_->Yield(Context::Active());
+}
+
+bool Context::WaitUntil(std::chrono::steady_clock::time_point const& tp) noexcept
+{
+    assert(scheduler_ != nullptr);
+    assert(this == Active());
+    return scheduler_->WaitUntil(this, tp);
+}
+
+bool Context::Wake() noexcept
+{
+    assert(Context::Active() != nullptr);
+
+    scheduler_->Schedule(this);
+
+    return true;
+}
+
 void Context::Detach() noexcept
 {
     assert(Context::Active() != this);
@@ -124,7 +225,7 @@ void Context::Detach() noexcept
 void Context::Attach(Context* ctx) noexcept
 {
     assert(Context::Active() != ctx);
-    GetScheduler()->AttachWorkerContext(this);
+    GetScheduler()->AttachWorkerContext(ctx);
 }
 
 }

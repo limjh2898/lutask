@@ -1,15 +1,15 @@
 #pragma once
-#include <lutask/context/FixedSizeStack.h>
+#include <lutask/context/StackContext.h>
 
 namespace lutask
 {
 struct Preallocated {
-    void* sp;
+    void* Sp;
     std::size_t     size;
-    lutask::context::FixedSizeStack   sctx;
+    lutask::context::StackContext   Sctx;
 
-    Preallocated(void* sp_, std::size_t size_, lutask::context::FixedSizeStack sctx_) noexcept :
-        sp(sp_), size(size_), sctx(sctx_) {
-    }
+    Preallocated(void* sp_, std::size_t size_, lutask::context::StackContext sctx_) noexcept
+        : Sp(sp_), size(size_), Sctx(sctx_) 
+    { }
 };
 }
