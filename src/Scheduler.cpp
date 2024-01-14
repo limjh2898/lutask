@@ -12,7 +12,21 @@ Scheduler::Scheduler(lutask::schedule::IPolicy* policy) noexcept
 
 Scheduler::~Scheduler()
 {
-	
+    assert(nullptr != mainContext_);
+    assert(nullptr != dispatcherContext_.get());
+    assert(Context::Active() == mainContext_);
+
+    shutdown_ = true;
+
+    Context::Active()->Suspend();
+
+    assert(workerQueue_.empty());
+    assert(terminatedQueue_.empty());
+    assert(sleepQueue_.empty());
+
+    Context::ResetActive();
+    dispatcherContext_.reset();
+    mainContext_ = nullptr;
 }
 
 void Scheduler::ProcTerminated()
@@ -108,6 +122,7 @@ lutask::context::FiberContext Scheduler::Terminate(Context* ctx) noexcept
     assert(ctx->IsContext(EType::WorkerContext));
 
     terminatedQueue_.push(ctx);
+    workerQueue_.remove(ctx);
 
     return policy_->PickNext()->SuspendWithCC();
 }

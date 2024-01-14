@@ -87,8 +87,8 @@ struct ContextInitializer
         assert(mainCtx->IsContext(EType::MainContext));
         lutask::Scheduler* sched = mainCtx->GetScheduler();
 
-        delete mainCtx;
         delete sched;
+        delete mainCtx;
     }
 };
 
