@@ -160,10 +160,13 @@ file(GLOB TARGET_SOURCE
     "src/schedule/*.cpp"
     "src/*.cpp")
 
-add_library(lutask STATIC ${ASM_SOURCES} ${TARGET_SOURCE} "include/lutask/schedule/SharedWorkPolicy.h")
+add_library(lutask STATIC ${ASM_SOURCES} ${TARGET_SOURCE})
 
-add_executable(simple_task "example/simple_task.cpp" "include/lutask/schedule/SharedWorkPolicy.h")
-target_link_libraries(simple_task lutask)
+add_executable(simple "example/simple.cpp")
+target_link_libraries(simple lutask)
+
+add_executable(shared_work "example/shared_work.cpp")
+target_link_libraries(shared_work lutask)
 
 if(BUILD_SHARED_LIBS)
   target_compile_definitions(lutask PUBLIC BOOST_CONTEXT_DYN_LINK= BOOST_CONTEXT_EXPORT=EXPORT)

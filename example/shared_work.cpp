@@ -55,19 +55,23 @@ void whatevah(char me) {
         {
             std::cout << "fiber " << me << " started on thread " << my_thread << '\n';
         }
-        for (unsigned i = 0; i < 10; ++i)
+        //for (unsigned i = 0; i < 10; ++i)
         {
             lutask::this_fiber::Yield();
-
-            std::cout << "fiber " << me << " switched to thread " << my_thread << '\n';
+            std::thread::id new_thread = std::this_thread::get_id();
+            if (new_thread != my_thread) 
+            {
+                std::cout << "fiber " << me << " switched to thread [prev id:" << my_thread <<  "] [cur id:" << new_thread << "]\n";
+                my_thread = new_thread;
+            }
         }
     }
     catch (...) { }
 
     lock_type lk(mtx_count);
-    if (0 == --fiber_count) { /*< Decrement fiber counter for each completed fiber. >*/
+    if (0 == --fiber_count) {
         lk.unlock();
-        cnd_count.NotifyAll(); /*< Notify all fibers waiting on `cnd_count`. >*/
+        cnd_count.NotifyAll();
     }
 }
 
@@ -75,7 +79,6 @@ void Thread(thread_barrier* b)
 {
 	std::cout << "thread started " << std::this_thread::get_id() << std::endl;
 	lutask::Fiber::SetSchedulingPolicy<lutask::schedule::SharedWorkPolicy>();
-    //lutask::this_fiber::Yield();
 
     b->wait();
     lock_type lk(mtx_count);
@@ -104,7 +107,6 @@ int main()
     };
 
     b.wait();
-   // lutask::this_fiber::Yield();
     {
         lock_type lk(mtx_count);
         cnd_count.Wait(lk, []() { return 0 == fiber_count; });
