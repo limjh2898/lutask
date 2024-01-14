@@ -3,9 +3,9 @@
 #include <mutex>
 #include <queue>
 #include <lutask/schedule/IPolicy.h>
+#include <lutask/Context.h>
 
 namespace lutask{
-struct Context;
 namespace schedule{
 
 class SharedWorkPolicy : public IPolicy 
@@ -15,7 +15,7 @@ class SharedWorkPolicy : public IPolicy
     static std::queue<Context*> readyQueue_;
     static std::mutex           rqueueMutex_;
 
-    std::queue<Context*>        localQueue_;
+    std::queue<Context*>    localQueue_;
     std::mutex                  mtx_;
     std::condition_variable     cnd_;
     bool                        flag_ = false;

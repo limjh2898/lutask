@@ -45,8 +45,6 @@ Context* SharedWorkPolicy::PickNext() noexcept
 			localQueue_.pop();
 		}
 	}
-
-
 	return ctx;
 }
 

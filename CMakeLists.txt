@@ -6,7 +6,7 @@ cmake_minimum_required (VERSION 3.8)
 # 지원되는 경우 MSVC 컴파일러에 대해 핫 다시 로드 사용하도록 설정합니다.
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
-  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
+  #set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
 project (lutask VERSION 0.0.1)
@@ -15,8 +15,8 @@ unset(_default_binfmt)
 
 set(CMAKE_CXX_STANDARD 17)
 
-#add_compile_options(-fsanitize=address)
-#add_link_options(-fsanitize=address)
+add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)
 
 ## ABI
 
@@ -146,7 +146,14 @@ endif()
 
 message(STATUS "${ASM_SOURCES}")
 
-include_directories("include")
+include_directories(
+    "include"
+    "C:/Program Files (x86)/Visual Leak Detector/include"
+)
+
+link_directories(
+    "C:/Program Files (x86)/Visual Leak Detector/lib/Win64"
+)
 
 file(GLOB TARGET_SOURCE 
     "src/context/windows/StackTraits.cpp"

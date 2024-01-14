@@ -9,6 +9,12 @@ void WaitQueue::SuspendAndWait(Context* activeCtx)
 	activeCtx->Suspend();
 }
 
+void WaitQueue::SuspendAndWait(std::unique_lock<std::mutex>& lk, Context* activeCtx)
+{
+	waits_.push(activeCtx);
+	activeCtx->Suspend(lk);
+}
+
 void WaitQueue::NotifyOne()
 {
 	while (waits_.empty() == false)

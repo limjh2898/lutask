@@ -2,18 +2,17 @@
 
 #include <mutex>
 #include <queue>
-
 #include <lutask/schedule/IPolicy.h>
+#include <lutask/Context.h>
 
 namespace lutask{
-struct Context;
 namespace schedule{
 
 class RoundRobinPolicy : public IPolicy 
 {
     using TimePoint = std::chrono::steady_clock::time_point;
 
-    std::queue<Context*>        readyQueue_{};
+    std::queue<Context*>    readyQueue_{};
     std::mutex                  mtx_{};
     std::condition_variable     cnd_{};
     bool                        flag_{ false };

@@ -1,6 +1,8 @@
 #pragma once
 
+#include <mutex>
 #include <queue>
+#include <memory>
 
 namespace lutask
 {
@@ -12,6 +14,7 @@ public:
     WaitQueue() = default;
 
     void SuspendAndWait(Context* activeCtx);
+    void SuspendAndWait(std::unique_lock<std::mutex>& lk, Context* activeCtx);
     void NotifyOne();
     void NotifyAll();
 

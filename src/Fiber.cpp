@@ -7,11 +7,11 @@ namespace lutask
 
 void Fiber::_Start() noexcept {
     Context* ctx = Context::Active();
-    ctx->Attach(impl_);
+    ctx->Attach(impl_.get());
     switch (impl_->GetType())
     {
     case ELaunch::Post:
-        ctx->GetScheduler()->Schedule(impl_);
+        ctx->GetScheduler()->Schedule(impl_.get());
         break;
     case ELaunch::Dispatch:
         impl_->Resume(ctx);
@@ -26,7 +26,7 @@ void Fiber::_Start() noexcept {
 
 void Fiber::Join()
 {
-    if (Context::Active() == impl_)
+    if (Context::Active() == impl_.get())
     {
         throw FiberError(std::make_error_code(std::errc::resource_deadlock_would_occur), 
             "lutask: trying to join itself");
@@ -37,7 +37,7 @@ void Fiber::Join()
             "lutask: not joinable");
     }
     impl_->Join();
-    impl_ = nullptr;
+    impl_.reset();
 }
 
 void Fiber::Detach()
@@ -47,12 +47,7 @@ void Fiber::Detach()
         throw FiberError(std::make_error_code(std::errc::invalid_argument),
             "lutask: not joinable");
     }
-
-    lutask::context::FiberContext c = std::move(impl_->c_);
-    std::move(c).Resume();
-
-    //impl_->~Context();
-    impl_ = nullptr;
+    impl_.reset();
 }
 
 }

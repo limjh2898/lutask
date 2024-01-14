@@ -29,7 +29,7 @@ public:
     }
 };
 
-static Context* MakeDispatcherContext(lutask::context::FixedSizeStack&& salloc) 
+static Context::Ptr MakeDispatcherContext(lutask::context::FixedSizeStack&& salloc) 
 {
     auto sctx = salloc.Allocate();
     void* storage = reinterpret_cast<void*>(
@@ -39,12 +39,12 @@ static Context* MakeDispatcherContext(lutask::context::FixedSizeStack&& salloc)
         reinterpret_cast<uintptr_t>(sctx.Sp) - static_cast<uintptr_t>(sctx.Size));
     const std::size_t size = reinterpret_cast<uintptr_t>(storage) - reinterpret_cast<uintptr_t>(stackBottom);
     
-    return new (storage) DispatcherContext{ Preallocated{ storage, size, sctx }, std::move(salloc) };
+    return Context::Ptr(new (storage) DispatcherContext{ Preallocated{ storage, size, sctx }, std::move(salloc) });
 };
 
 struct ContextInitializer 
 {
-    static thread_local lutask::Context* active_;
+    static thread_local Context* active_;
     static thread_local std::size_t counter_;
 
     using DefaultSchedulePolicy = schedule::RoundRobinPolicy;
@@ -73,20 +73,22 @@ struct ContextInitializer
 
     void Initialize(lutask::schedule::IPolicy* policy, lutask::context::FixedSizeStack&& salloc)
     {
-        lutask::Context* mainCtx = new MainContext{};
+        Context* mainCtx = new MainContext{};
         auto sched = new lutask::Scheduler(policy);
         sched->AttachMainContext(mainCtx);
-        sched->AttachDispatcherContext(MakeDispatcherContext(std::move(salloc)));
+        auto dispatcher = MakeDispatcherContext(std::move(salloc));
+        sched->AttachDispatcherContext(dispatcher);
         active_ = mainCtx;
     }
 
     void Deinitialize()
     {
-        lutask::Context* mainCtx = active_;
+        Context* mainCtx = active_;
         assert(mainCtx->IsContext(EType::MainContext));
         lutask::Scheduler* sched = mainCtx->GetScheduler();
-        delete sched;
+
         delete mainCtx;
+        delete sched;
     }
 };
 
@@ -159,6 +161,19 @@ void Context::Resume() noexcept
         });
 }
 
+void Context::Resume(std::unique_lock<std::mutex>& lk) noexcept
+{
+    Context* prev = this;
+    std::swap(ContextInitializer::active_, prev);
+    std::move(c_).ResumeWith([prev, &lk](lutask::context::FiberContext&& c)
+        {
+            prev->c_ = std::move(c);
+            lk.unlock();
+            return lutask::context::FiberContext();
+        });
+}
+
+
 void Context::Resume(Context* readyCtx) noexcept
 {
     Context* prev = this;
@@ -174,6 +189,11 @@ void Context::Resume(Context* readyCtx) noexcept
 void Context::Suspend() noexcept
 {
     scheduler_->Suspend();
+}
+
+void Context::Suspend(std::unique_lock<std::mutex>& lk) noexcept
+{
+    scheduler_->Suspend(lk);
 }
 
 lutask::context::FiberContext Context::SuspendWithCC() noexcept

@@ -61,7 +61,7 @@ void Scheduler::Schedule(Context* ctx) noexcept
 
 lutask::context::FiberContext Scheduler::Dispatch() noexcept
 {
-    assert(Context::Active() == dispatcherContext_);
+    assert(Context::Active() == dispatcherContext_.get());
     for (;;) 
     {
         if (shutdown_) 
@@ -79,13 +79,12 @@ lutask::context::FiberContext Scheduler::Dispatch() noexcept
         if (nullptr != ctx) 
         {
             assert(ctx->IsResumable());
-            ctx->Resume(dispatcherContext_);
-            assert(Context::Active() == dispatcherContext_);
+            ctx->Resume(dispatcherContext_.get());
+            assert(Context::Active() == dispatcherContext_.get());
         }
         else 
         {
-            std::chrono::steady_clock::time_point suspendTime =
-                (std::chrono::steady_clock::time_point::max)();
+            auto suspendTime = std::chrono::steady_clock::time_point::max();
 
             auto iter = sleepQueue_.begin();
             if (sleepQueue_.end() != iter)
@@ -108,6 +107,8 @@ lutask::context::FiberContext Scheduler::Terminate(Context* ctx) noexcept
     assert(this == ctx->GetScheduler());
     assert(ctx->IsContext(EType::WorkerContext));
 
+    terminatedQueue_.push(ctx);
+
     return policy_->PickNext()->SuspendWithCC();
 }
 
@@ -116,6 +117,9 @@ void Scheduler::Yield(Context* ctx) noexcept
     assert(nullptr != ctx);
     assert(Context::Active() == ctx);
     assert(ctx->IsContext(EType::WorkerContext) || ctx->IsContext(EType::MainContext));
+
+
+    workerQueue_.remove(ctx);
 
     policy_->PickNext()->Resume(ctx);
 }
@@ -139,24 +143,30 @@ void Scheduler::Suspend() noexcept
     policy_->PickNext()->Resume();
 }
 
+void Scheduler::Suspend(std::unique_lock<std::mutex>& lk) noexcept
+{
+    policy_->PickNext()->Resume(lk);
+}
+
 void Scheduler::AttachMainContext(Context* ctx) noexcept
 {
     mainContext_ = ctx;
     ctx->scheduler_ = this;
 }
 
-void Scheduler::AttachDispatcherContext(Context* ctx) noexcept
+void Scheduler::AttachDispatcherContext(Context::Ptr ctx) noexcept
 {
-    dispatcherContext_ = ctx;
+    dispatcherContext_.swap(ctx);
     dispatcherContext_->scheduler_ = this;
-    policy_->Awakened(dispatcherContext_);
+    policy_->Awakened(dispatcherContext_.get());
 }
 
-void Scheduler::AttachWorkerContext(Context* ctx) noexcept 
+void Scheduler::AttachWorkerContext(Context* ctx) noexcept
 {
     assert(nullptr != ctx);
     assert(nullptr == ctx->GetScheduler());
-    workerQueue_.push(ctx);
+
+    workerQueue_.push_back(ctx);
     ctx->scheduler_ = this;
     // an attached context must belong at least to worker-queue
 }
@@ -165,6 +175,7 @@ void Scheduler::DetachWorkerContext(Context* ctx) noexcept
 {
     assert(nullptr != ctx);
     assert(ctx->IsContext(EType::PinnedContext) == false);
+    workerQueue_.remove(ctx);
     // unlink
     ctx->scheduler_ = nullptr;
 }

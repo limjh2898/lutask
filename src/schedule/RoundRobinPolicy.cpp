@@ -1,5 +1,4 @@
 #include <lutask/schedule/RoundRobinPolicy.h>
-#include <lutask/Context.h>
 #include <cassert>
 
 namespace lutask {
@@ -18,7 +17,7 @@ Context* RoundRobinPolicy::PickNext() noexcept
 	{
 		Context* ctx = readyQueue_.front();
 		readyQueue_.pop();
-		// prefetch?
+
 		assert(ctx != nullptr);
 		assert(ctx->IsResumable());
 

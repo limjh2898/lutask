@@ -272,8 +272,7 @@ public:
 	FiberContext ResumeWith(Fn&& fn)&& {
 		assert(nullptr != fctx_);
 		auto p = std::forward< Fn >(fn);
-		return { ontop_fcontext(
-					std::exchange(fctx_, nullptr),
+		return { ontop_fcontext( std::exchange(fctx_, nullptr),
 					& p, FiberOntop< FiberContext, decltype(p) >).fctx };
 	}
 

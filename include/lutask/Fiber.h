@@ -10,7 +10,7 @@ class Fiber final
 private:
 	friend struct Context;
 
-	Context* impl_;
+	Context::Ptr impl_;
 
 	void _Start() noexcept;
 
@@ -34,9 +34,9 @@ public:
 	}
 
 	Fiber(Fiber const&) = delete;
-	Fiber(Fiber&& other) noexcept : impl_(other.impl_) 
+	Fiber(Fiber&& other) noexcept : impl_() 
 	{
-		other.impl_ = nullptr;
+		Swap(other);
 	}
 
 	~Fiber()
@@ -44,6 +44,7 @@ public:
 		if (Joinable())
 			std::terminate();
 	}
+
 	Fiber& operator=(Fiber const&) = delete;
 	Fiber& operator=(Fiber&& other) noexcept
 	{
@@ -53,12 +54,16 @@ public:
 		if (this == &other)
 			return *this;
 
-		impl_ = other.impl_;
-		other.impl_ = nullptr;
+		impl_.swap(other.impl_);
 		return *this;
 	}
 
-	bool Joinable() const noexcept { return nullptr != impl_; }
+	void Swap(Fiber& other)
+	{
+		impl_.swap(other.impl_);
+	}
+
+	bool Joinable() const noexcept { return nullptr != impl_.get(); }
 	void Join();
 	void Detach();
 
