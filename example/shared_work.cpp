@@ -1,4 +1,3 @@
-#include <vld.h>
 #include <iostream>
 #include <ostream>
 #include <thread>
@@ -48,14 +47,15 @@ static std::mutex mtx_count{};
 static lutask::ConditionVariableAny cnd_count;
 typedef std::unique_lock< std::mutex > lock_type;
 
-void whatevah(char me) {
+void whatevah(char me) 
+{
     try 
     {
         std::thread::id my_thread = std::this_thread::get_id(); /*< get ID of initial thread >*/
         {
             std::cout << "fiber " << me << " started on thread " << my_thread << '\n';
         }
-        //for (unsigned i = 0; i < 10; ++i)
+        for (unsigned i = 0; i < 10; ++i)
         {
             lutask::this_fiber::Yield();
             std::thread::id new_thread = std::this_thread::get_id();
@@ -65,6 +65,7 @@ void whatevah(char me) {
                 my_thread = new_thread;
             }
         }
+
     }
     catch (...) { }
 

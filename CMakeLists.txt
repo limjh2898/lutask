@@ -44,8 +44,6 @@ else()
   endif()
 endif()
 
-message("#### ${_default_arch}")
-
 ## Binary format
 
 if(WIN32)
@@ -148,12 +146,12 @@ message(STATUS "${ASM_SOURCES}")
 
 include_directories(
     "include"
-    "C:/Program Files (x86)/Visual Leak Detector/include"
+    #"C:/Program Files (x86)/Visual Leak Detector/include"
 )
 
-link_directories(
-    "C:/Program Files (x86)/Visual Leak Detector/lib/Win64"
-)
+#link_directories(
+#    "C:/Program Files (x86)/Visual Leak Detector/lib/Win64"
+#)
 
 file(GLOB TARGET_SOURCE 
     "src/context/windows/StackTraits.cpp"
