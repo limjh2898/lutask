@@ -17,5 +17,36 @@ public:
     ~FiberError() override = default;
 };
 
+enum class ETaskError
+{
+    NoState
+};
+
+std::error_category const& TaskCategory() noexcept;
+}
+
+namespace std 
+{
+    inline std::error_code make_error_code(lutask::ETaskError e) noexcept
+    {
+        return std::error_code(static_cast<int>(e), lutask::TaskCategory());
+    }
+}
+
+namespace lutask
+{
+class TaskError : public FiberError
+{
+public:
+    explicit TaskError(std::error_code ec) : FiberError{ ec } { }
+};
+
+class PackagedTaskUninitialized : public TaskError
+{
+public:
+    PackagedTaskUninitialized() :
+        TaskError{ std::make_error_code(ETaskError::NoState) } {
+    }
+};
 
 }
