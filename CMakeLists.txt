@@ -15,8 +15,8 @@ unset(_default_binfmt)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_compile_options(-fsanitize=address)
-add_link_options(-fsanitize=address)
+#add_compile_options(-fsanitize=address)
+#add_link_options(-fsanitize=address)
 
 ## ABI
 

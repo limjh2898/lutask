@@ -364,16 +364,6 @@ Async(Fn&& fn, Args ... args)
 
 #define async_await(f, ...) Async(f, __VA_ARGS__).Get();
 
-inline int fn(std::string const& str, int n)
-{
-    for (int i = 0; i < n; ++i)
-    {
-        std::cout << n << ": " << str << " - thread id: " << std::this_thread::get_id() << std::endl;
-    }
-
-    return 10;
-}
-
 class thread_barrier {
 private:
     std::size_t             initial_;
@@ -415,7 +405,7 @@ bool end = false;
 
 void Thread(thread_barrier* b)
 {
-    std::cout << "thread started " << std::this_thread::get_id() << std::endl;
+    //std::cout << "thread started " << std::this_thread::get_id() << std::endl;
     lutask::Fiber::SetSchedulingPolicy<lutask::schedule::SharedWorkPolicy>();
 
     b->wait();
@@ -423,13 +413,28 @@ void Thread(thread_barrier* b)
     cnd_count.Wait(lk, []() { return end; });
 }
 
-
-inline void main_loop()
+inline int fn(std::string const& str, int n)
 {
-    
+    //for (int i = 0; i < n; ++i)
+    {
+        std::cout << "## Proc" << n << ": " << str << " - thread id: " << std::this_thread::get_id() << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
+
+    return 10;
+}
+
+
+inline void proc_logic(int i)
+{
+    std::cout << "main_loop started [" << i << "]" << std::this_thread::get_id() << std::endl;
     auto result = async_await(fn, "abc", 5);
-    std::cout << result << std::endl;
+    std::cout << "main_loop ended [" << i << "]" << std::this_thread::get_id() << std::endl;
     
+    std::cout << "main_loop2 started [" << i << "]" << std::this_thread::get_id() << std::endl;
+    result = async_await(fn, "abc", 5);
+    std::cout << "main_loop2 ended [" << i << "]" << std::this_thread::get_id() << std::endl;
+
     end = true;
 }
 
@@ -437,16 +442,22 @@ int main()
 {
     std::cout << "main thread started " << std::this_thread::get_id() << std::endl;
 
-    thread_barrier b(3);
+    thread_barrier b(1);
 
     try
     {
-        lutask::Fiber f1(main_loop);
+        std::vector<lutask::Fiber> fs;
+
+        for (int i = 0; i < 10; i++)
+        {
+            lutask::Fiber f1(proc_logic, i);
+            fs.push_back(std::move(f1));
+        }
 
         std::thread threads[] = {
-            std::thread(Thread, &b),
-            std::thread(Thread, &b),
             std::thread(Thread, &b)
+            //std::thread(Thread, &b),
+            //std::thread(Thread, &b)
         };
 
         b.wait();
@@ -458,6 +469,11 @@ int main()
         for (std::thread& t : threads)
         {
             t.join();
+        }
+
+        for (auto& f : fs)
+        {
+            f.Join();
         }
 
         return 0;

@@ -1,4 +1,5 @@
 #include <lutask/schedule/SharedWorkPolicy.h>
+#include <lutask/Scheduler.h>
 #include <lutask/Context.h>
 
 namespace lutask {
@@ -33,6 +34,11 @@ Context* SharedWorkPolicy::PickNext() noexcept
 		lk.unlock();
 
 		assert(ctx != nullptr);
+
+		if (Context::Active()->GetType() == ELaunch::Async)
+		{
+			Context::ChangeActive(Context::Active()->GetScheduler()->GetDispatcherContext());
+		}
 
 		Context::Active()->Attach(ctx);
 	}

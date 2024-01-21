@@ -134,6 +134,11 @@ Context* Context::Active() noexcept
     return ContextInitializer::active_;
 }
 
+void Context::ChangeActive(Context* ctx) noexcept
+{
+    ContextInitializer::active_ = ctx;
+}
+
 void Context::ResetActive() noexcept
 {
     ContextInitializer::active_ = nullptr;

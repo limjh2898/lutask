@@ -4,6 +4,7 @@
 #include <list>
 #include <set>
 #include <concurrent_unordered_map.h>
+#include <concurrent_queue.h>
 
 #include <lutask/Context.h>
 #include <lutask/schedule/IPolicy.h>
@@ -28,7 +29,7 @@ private:
 	bool				shutdown_{ false };
 
 	std::list<Context*> workerQueue_;
-	std::queue<Context*> terminatedQueue_;
+	concurrency::concurrent_queue<Context*> terminatedQueue_;
 	std::multiset<Context*, TimepointLess> sleepQueue_;
 
 private:
@@ -43,6 +44,8 @@ public:
 	virtual ~Scheduler();
 
 	void Schedule(Context* ctx) noexcept;
+
+	Context* GetDispatcherContext() const noexcept { return dispatcherContext_.get(); }
 
 	lutask::context::FiberContext Dispatch() noexcept;
 	lutask::context::FiberContext Terminate(Context* ctx) noexcept;

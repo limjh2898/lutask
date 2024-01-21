@@ -65,6 +65,7 @@ namespace lutask
     public:
         static bool InitializeThread(schedule::IPolicy* policy, context::FixedSizeStack&& salloc) noexcept;
         static Context* Active() noexcept;
+        static void ChangeActive(Context* ctx) noexcept;
         static void ResetActive() noexcept;
 
     public:
@@ -97,6 +98,7 @@ namespace lutask
         bool IsContext(EType t) const noexcept { return EType::None != (type_ & t); }
         ELaunch GetType() const noexcept { return policy_; }
         Scheduler* GetScheduler() const noexcept { return scheduler_; }
+        void SetScheduler(Scheduler* sche) noexcept { scheduler_ = sche; }
 
         void Detach() noexcept;
         void Attach(Context* ctx) noexcept;
