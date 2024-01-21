@@ -11,8 +11,12 @@ public:
 	{
 		switch (static_cast<ETaskError>(ev))
 		{
+		case ETaskError::AlreadyRetrived:
+			return std::error_condition(static_cast<int>(ETaskError::AlreadyRetrived), TaskCategory());
+		case ETaskError::AlreadySatisfied:
+			return std::error_condition(static_cast<int>(ETaskError::AlreadySatisfied), TaskCategory());
 		case ETaskError::NoState:
-			return std::error_condition(ev, TaskCategory());
+			return std::error_condition(static_cast<int>(ETaskError::NoState), TaskCategory());
 		default:
 			return std::error_condition(ev, *this);
 		}
@@ -27,6 +31,10 @@ public:
 	{
 		switch (static_cast<ETaskError>(ev))
 		{
+		case ETaskError::AlreadyRetrived:
+			return "the task has already been retrieved from packaged task";
+		case ETaskError::AlreadySatisfied:
+			return "the state of the task already been set.";
 		case ETaskError::NoState:
 			return "Operation not permitted on an object without an associated state.";
 		default:

@@ -1,6 +1,7 @@
 #include <lutask/Fiber.h>
 #include <lutask/Scheduler.h>
 #include <lutask/Exceptions.h>
+#include <lutask/schedule/SharedWorkPolicy.h>
 
 namespace lutask
 {
@@ -17,7 +18,7 @@ void Fiber::_Start() noexcept {
         impl_->Resume(ctx);
         break;
     case ELaunch::Async:
-
+        schedule::SharedWorkPolicy::AwakenedAsync(impl_.get());
         break;
     default:
         assert(false && "unknown launch-policy");

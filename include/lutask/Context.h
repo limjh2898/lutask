@@ -52,6 +52,7 @@ namespace lutask
     private:
         std::atomic_uint64_t useCount_;
         Scheduler* scheduler_;
+        Scheduler* originScheduler_;
         context::FiberContext c_;
         WaitQueue waitList_;
         TimePoint tp_;

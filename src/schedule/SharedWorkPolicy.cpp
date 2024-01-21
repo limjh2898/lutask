@@ -84,4 +84,11 @@ void SharedWorkPolicy::Notify() noexcept
 	}
 }
 
+void SharedWorkPolicy::AwakenedAsync(Context* ctx) noexcept
+{
+	ctx->Detach();
+	std::unique_lock<std::mutex> lk(rqueueMutex_);
+	readyQueue_.push(ctx);
+}
+
 }}

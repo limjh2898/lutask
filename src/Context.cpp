@@ -112,6 +112,7 @@ bool Context::InitializeThread(lutask::schedule::IPolicy* policy, lutask::contex
 Context::Context(std::size_t initialCount, EType type, ELaunch policy)noexcept
     : useCount_(initialCount)
     , scheduler_(nullptr)
+    , originScheduler_(nullptr)
     , tp_(std::chrono::steady_clock::time_point::max())
     , type_(type)
     , policy_(policy)
@@ -239,6 +240,11 @@ bool Context::Wake() noexcept
 void Context::Detach() noexcept
 {
     assert(Context::Active() != this);
+    if (policy_ == ELaunch::Async)
+    {
+        originScheduler_ = GetScheduler();
+    }
+
     GetScheduler()->DetachWorkerContext(this);
 }
 

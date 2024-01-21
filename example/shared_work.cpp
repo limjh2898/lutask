@@ -88,7 +88,6 @@ void Thread(thread_barrier* b)
 
 int main()
 {
-    int* a = new int(1);
     std::cout << "main thread started " << std::this_thread::get_id() << std::endl;
 
     lutask::Fiber::SetSchedulingPolicy<lutask::schedule::SharedWorkPolicy>();

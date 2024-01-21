@@ -19,6 +19,8 @@ public:
 
 enum class ETaskError
 {
+    AlreadyRetrived,
+    AlreadySatisfied,
     NoState
 };
 
@@ -41,12 +43,27 @@ public:
     explicit TaskError(std::error_code ec) : FiberError{ ec } { }
 };
 
+class FutureUninitialized : public TaskError {
+public:
+    FutureUninitialized() : TaskError{ std::make_error_code(ETaskError::NoState) } { }
+};
+
+class TaskAlreadyRetrived : public TaskError
+{
+public:
+    TaskAlreadyRetrived() : TaskError{ std::make_error_code(ETaskError::AlreadyRetrived) } { }
+};
+
+class TaskAlreadySatisfied : public TaskError
+{
+public:
+    TaskAlreadySatisfied() : TaskError{ std::make_error_code(ETaskError::AlreadySatisfied) } { }
+};
+
 class PackagedTaskUninitialized : public TaskError
 {
 public:
-    PackagedTaskUninitialized() :
-        TaskError{ std::make_error_code(ETaskError::NoState) } {
-    }
+    PackagedTaskUninitialized() : TaskError{ std::make_error_code(ETaskError::NoState) } { }
 };
 
 }

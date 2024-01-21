@@ -34,6 +34,8 @@ public:
     virtual bool HasReadyFibers() const noexcept override final;
     virtual void SuspendUntil(TimePoint const&) noexcept override final;
     virtual void Notify() noexcept override final;
+
+    static void AwakenedAsync(Context* ctx) noexcept;
 };
 
 }}
