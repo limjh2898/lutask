@@ -120,15 +120,15 @@ lutask::context::FiberContext Scheduler::Terminate(Context* ctx) noexcept
     assert(this == ctx->GetScheduler());
     assert(ctx->IsContext(EType::WorkerContext));
 
-    if (ctx->GetType() == ELaunch::Async)
-    {
-        ctx->originScheduler_->terminatedQueue_.push(ctx);
-        ctx->scheduler_ = ctx->originScheduler_;
-    }
-    else
-    {
+    //if (ctx->GetType() == ELaunch::Async)
+    //{
+    //    ctx->originScheduler_->terminatedQueue_.push(ctx);
+    //    ctx->scheduler_ = ctx->originScheduler_;
+    //}
+    //else
+    //{
         terminatedQueue_.push(ctx);
-    }
+    //}
 
     workerQueue_.remove(ctx);
     return policy_->PickNext()->SuspendWithCC();

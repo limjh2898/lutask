@@ -35,11 +35,6 @@ Context* SharedWorkPolicy::PickNext() noexcept
 
 		assert(ctx != nullptr);
 
-		if (Context::Active()->GetType() == ELaunch::Async)
-		{
-			Context::ChangeActive(Context::Active()->GetScheduler()->GetDispatcherContext());
-		}
-
 		Context::Active()->Attach(ctx);
 	}
 	else

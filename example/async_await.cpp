@@ -410,15 +410,15 @@ void Thread(thread_barrier* b)
 
     b->wait();
     lock_type lk(mtx_count);
-    cnd_count.Wait(lk, []() { return end; });
+    cnd_count.Wait(lk, []() { return fiber_count == 0; });
 }
 
 inline int fn(std::string const& str, int n)
 {
-    //for (int i = 0; i < n; ++i)
+    for (int i = 0; i < n; ++i)
     {
         std::cout << "## Proc" << n << ": " << str << " - thread id: " << std::this_thread::get_id() << std::endl;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(n));
     }
 
     return 10;
@@ -432,48 +432,46 @@ inline void proc_logic(int i)
     std::cout << "main_loop ended [" << i << "]" << std::this_thread::get_id() << std::endl;
     
     std::cout << "main_loop2 started [" << i << "]" << std::this_thread::get_id() << std::endl;
-    result = async_await(fn, "abc", 5);
+    result = async_await(fn, "def", 2);
     std::cout << "main_loop2 ended [" << i << "]" << std::this_thread::get_id() << std::endl;
 
-    end = true;
+    lock_type lk(mtx_count);
+    if (0 == --fiber_count) {
+        lk.unlock();
+        cnd_count.NotifyAll();
+    }
 }
 
 int main()
 {
     std::cout << "main thread started " << std::this_thread::get_id() << std::endl;
 
-    thread_barrier b(1);
+    thread_barrier b(5);
 
     try
     {
-        std::vector<lutask::Fiber> fs;
-
         for (int i = 0; i < 10; i++)
         {
-            lutask::Fiber f1(proc_logic, i);
-            fs.push_back(std::move(f1));
+            lutask::Fiber(proc_logic, i).Detach();
+            fiber_count++;
         }
 
         std::thread threads[] = {
+            std::thread(Thread, &b),
+            std::thread(Thread, &b),
+            std::thread(Thread, &b),
             std::thread(Thread, &b)
-            //std::thread(Thread, &b),
-            //std::thread(Thread, &b)
         };
 
         b.wait();
         {
             lock_type lk(mtx_count);
-            cnd_count.Wait(lk, []() { return end; });
+            cnd_count.Wait(lk, []() { return fiber_count == 0; });
         }
 
         for (std::thread& t : threads)
         {
             t.join();
-        }
-
-        for (auto& f : fs)
-        {
-            f.Join();
         }
 
         return 0;
