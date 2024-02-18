@@ -169,6 +169,9 @@ target_link_libraries(shared_work lutask)
 add_executable(async_await "example/async_await.cpp")
 target_link_libraries(async_await lutask)
 
+add_executable(fcontext_test "example/fcontext_test.cpp") 
+target_link_libraries(fcontext_test lutask)
+
 if(BUILD_SHARED_LIBS)
   target_compile_definitions(lutask PUBLIC BOOST_CONTEXT_DYN_LINK= BOOST_CONTEXT_EXPORT=EXPORT)
 else()

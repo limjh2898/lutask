@@ -115,21 +115,14 @@ lutask::context::FiberContext Scheduler::Dispatch() noexcept
 
 lutask::context::FiberContext Scheduler::Terminate(Context* ctx) noexcept
 {
+    std::unique_lock<std::mutex> lk(mtx_);
+
     assert(nullptr != ctx);
     assert(Context::Active() == ctx);
     assert(this == ctx->GetScheduler());
     assert(ctx->IsContext(EType::WorkerContext));
 
-    //if (ctx->GetType() == ELaunch::Async)
-    //{
-    //    ctx->originScheduler_->terminatedQueue_.push(ctx);
-    //    ctx->scheduler_ = ctx->originScheduler_;
-    //}
-    //else
-    //{
-        terminatedQueue_.push(ctx);
-    //}
-
+    terminatedQueue_.push(ctx);
     workerQueue_.remove(ctx);
     return policy_->PickNext()->SuspendWithCC();
 }
@@ -142,8 +135,28 @@ void Scheduler::Yield(Context* ctx) noexcept
 
 
     workerQueue_.remove(ctx);
-
     policy_->PickNext()->Resume(ctx);
+}
+
+void Scheduler::YieldOrigin(Context* ctx) noexcept
+{
+    assert(nullptr != ctx);
+    assert(Context::Active() == ctx);
+    assert(ctx->IsContext(EType::WorkerContext) || ctx->IsContext(EType::MainContext));
+
+    workerQueue_.remove(ctx);
+
+    if (ctx->originScheduler_ != nullptr)
+    {
+        //std::cout << "yield origin: " << ctx << std::endl;
+        ctx->scheduler_ = nullptr;
+        ctx->originScheduler_->Schedule(ctx);
+        //policy_->PickNext()->Resume();
+    }
+    else
+    {
+        policy_->PickNext()->Resume(ctx);
+    }
 }
 
 bool Scheduler::WaitUntil(Context* ctx, std::chrono::steady_clock::time_point const& tp) noexcept
@@ -185,6 +198,8 @@ void Scheduler::AttachDispatcherContext(Context::Ptr ctx) noexcept
 
 void Scheduler::AttachWorkerContext(Context* ctx) noexcept
 {
+    std::unique_lock<std::mutex> lk(mtx_);
+
     assert(nullptr != ctx);
     assert(nullptr == ctx->GetScheduler());
 

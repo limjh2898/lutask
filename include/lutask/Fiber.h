@@ -92,6 +92,7 @@ namespace this_fiber
 	}
 
 	inline void Yield() noexcept { lutask::Context::Active()->Yield(); }
+	inline void YieldOrigin() noexcept { lutask::Context::Active()->YieldOrigin(); }
 
 	template<typename Rep, typename Period>
 	void sleep_until(std::chrono::time_point<Rep, Period> const& sleepTime)

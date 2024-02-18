@@ -57,7 +57,6 @@ void whatevah(char me)
         }
         for (unsigned i = 0; i < 10; ++i)
         {
-            lutask::this_fiber::Yield();
             std::thread::id new_thread = std::this_thread::get_id();
             if (new_thread != my_thread) 
             {
@@ -65,7 +64,9 @@ void whatevah(char me)
                 my_thread = new_thread;
             }
         }
-
+        lutask::this_fiber::YieldOrigin();
+        my_thread = std::this_thread::get_id();
+        std::cout << "fiber " << me << " ended on thread " << my_thread << '\n';
     }
     catch (...) { }
 
@@ -90,20 +91,21 @@ int main()
 {
     std::cout << "main thread started " << std::this_thread::get_id() << std::endl;
 
-    lutask::Fiber::SetSchedulingPolicy<lutask::schedule::SharedWorkPolicy>();
+    //lutask::Fiber::SetSchedulingPolicy<lutask::schedule::SharedWorkPolicy>();
 
     for (char c : std::string("abcdefghijklmnopqrstuvwxyz")) 
     {
-        lutask::Fiber([c]() { whatevah(c); }).Detach();
+        //lutask::Fiber([c]() { whatevah(c); }).Detach();
+        lutask::Fiber(lutask::ELaunch::Async, [c]() { whatevah(c); }).Detach();
         ++fiber_count;
     }
 
-    thread_barrier b(4);
+    thread_barrier b(2);
 
     std::thread threads[] = {
        std::thread(Thread, &b),
-       std::thread(Thread, &b),
-       std::thread(Thread, &b)
+       //std::thread(Thread, &b),
+       //std::thread(Thread, &b)
     };
 
     b.wait();

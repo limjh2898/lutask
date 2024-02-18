@@ -79,6 +79,7 @@ namespace lutask
         void Join();
 
         void Yield() noexcept;
+        void YieldOrigin() noexcept;
 
         void Resume() noexcept;
         void Resume(std::unique_lock<std::mutex>& lk) noexcept;

@@ -226,6 +226,11 @@ void Context::Yield() noexcept
     scheduler_->Yield(Context::Active());
 }
 
+void Context::YieldOrigin() noexcept
+{
+    scheduler_->YieldOrigin(Context::Active());
+}
+
 bool Context::WaitUntil(std::chrono::steady_clock::time_point const& tp) noexcept
 {
     assert(scheduler_ != nullptr);
@@ -244,12 +249,11 @@ bool Context::Wake() noexcept
 
 void Context::Detach() noexcept
 {
-    assert(Context::Active() != this);
     if (policy_ == ELaunch::Async)
     {
-        originScheduler_ = GetScheduler();
+        return;
     }
-
+    assert(Context::Active() != this);
     GetScheduler()->DetachWorkerContext(this);
 }
 

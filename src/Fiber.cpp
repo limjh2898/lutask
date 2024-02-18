@@ -8,16 +8,19 @@ namespace lutask
 
 void Fiber::_Start() noexcept {
     Context* ctx = Context::Active();
-    ctx->Attach(impl_.get());
     switch (impl_->GetType())
     {
     case ELaunch::Post:
+        ctx->Attach(impl_.get());
         ctx->GetScheduler()->Schedule(impl_.get());
         break;
     case ELaunch::Dispatch:
+        ctx->Attach(impl_.get());
         impl_->Resume(ctx);
         break;
     case ELaunch::Async:
+        std::cout << "## _start thread id: " << std::this_thread::get_id() << std::endl;
+        impl_.get()->originScheduler_ = ctx->GetScheduler();
         schedule::SharedWorkPolicy::AwakenedAsync(impl_.get());
         break;
     default:

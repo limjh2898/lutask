@@ -31,6 +31,7 @@ private:
 	std::list<Context*> workerQueue_;
 	concurrency::concurrent_queue<Context*> terminatedQueue_;
 	std::multiset<Context*, TimepointLess> sleepQueue_;
+	std::mutex mtx_;
 
 private:
 	void ProcTerminated();
@@ -51,6 +52,7 @@ public:
 	lutask::context::FiberContext Terminate(Context* ctx) noexcept;
 
 	void Yield(Context* ctx) noexcept;
+	void YieldOrigin(Context* ctx) noexcept;
 
 	bool WaitUntil(Context* ctx,
 		std::chrono::steady_clock::time_point const& tp) noexcept;
