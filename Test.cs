@@ -1,3 +1,26 @@
+template<typename T, size_t SIZE>
+inline bool TryGetValue(const json_t& _elem, const char* _attrName, Array<T, SIZE>& _container, const T _default)
+{
+	if (!_elem.contains(_attrName))
+	{
+		return false;
+	}
+
+	const size_t size = _elem.array_range();
+	for (size_t i = 0; i < size; i++)
+	{
+		T value;
+		json_t data = _elem.at(i);
+		if (!TryGetElementValue(data, value))
+			return false;
+
+		_container.Get().emplace_back(value);
+	}
+
+	return true;
+}
+
+
 using System;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
